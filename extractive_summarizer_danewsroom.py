@@ -3,6 +3,7 @@
 
 # coding: utf-8
 import nltk
+import math
 nltk.download('stopwords')
 from nltk.corpus import stopwords # Also contains stopwords in Danish
 # A stopword is e.g. "and", "me", "can"
@@ -42,8 +43,8 @@ def sentence_similarity(sent1, sent2, stopwords=None):
  
     # build the vector for the first sentence
     for w in sent1:
-        if w in stopwords:
-            continue
+        if w in stopwords: # if the word in the sentence is in the stopwords 
+            continue # it will add a 1 to that sentence vector for that word
         vector1[all_words.index(w)] += 1
  
     # build the vector for the second sentence
@@ -51,8 +52,12 @@ def sentence_similarity(sent1, sent2, stopwords=None):
         if w in stopwords:
             continue
         vector2[all_words.index(w)] += 1
- 
-    return 1 - cosine_distance(vector1, vector2)
+
+    dist = cosine_distance(vector1, vector2)
+    if math.isnan(dist): # if both vectors are 0 they give nan. We need this to be 1 to make the function work
+        dist = 1
+        
+    return 1 - dist
  
 def build_similarity_matrix(sentences, stop_words):
     # Create an empty similarity matrix
@@ -101,7 +106,6 @@ import pandas as pd
 # Rouge scores
 from rouge_score import rouge_scorer
 
-
 scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True)
 
 # Lists for output
@@ -111,28 +115,31 @@ filesummaries = []
 
 import csv
 #df = pd.read_csv('../../NP Exam/danewsroom.csv', chunksize=10000, iterator=True)
-df = pd.read_csv('../../NP Exam/danewsroom.csv', nrows=100)
+df = pd.read_csv('../danewsroom.csv', nrows=100)
+
+filedata = df['text'][29]
 
 def summarise_danewsroom(df):
     for iter_num in range(len(df)):
-        if iter_num != 29:
-            # do things with chunk
-            filedata = df['text'][iter_num]
-            filesummary = df['summary'][iter_num]
-            
+        #if iter_num != 29:
+        # do things with chunk
+        filedata = df['text'][iter_num]
+        filesummary = df['summary'][iter_num]
 
-            summary = generate_summary(filedata, 1) 
-            summary = " ".join(map(str, summary)) # from list of sentences to a string object
-                
-            # Rouge scores
-            scores = scorer.score(filesummary, summary)
-                
-            rouge_scores.append(scores)
-            filesummaries.append(filesummary)
-            summaries.append(summary)
-        else:
-            print("moving on")
-            continue
+        print(iter_num)
+        
+        summary = generate_summary(filedata, 3) 
+        summary = " ".join(map(str, summary)) # from list of sentences to a string object
+            
+        # Rouge scores
+        scores = scorer.score(filesummary, summary)
+            
+        rouge_scores.append(scores)
+        filesummaries.append(filesummary)
+        summaries.append(summary)
+    #else:
+        #print("moving on")
+        #continue
         
         # break
         if iter_num == 100:
@@ -141,5 +148,5 @@ def summarise_danewsroom(df):
 
 
 output = summarise_danewsroom(df)
-
+print(output[2][29])
 
