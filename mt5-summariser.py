@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from sklearn.model_selection import train_test_split
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, DataCollatorForSeq2Seq, Seq2SeqTrainingArguments, Seq2SeqTrainer
+from transformers import EarlyStoppingCallback
 
 nltk.download('punkt')
 model_checkpoint = "google/mt5-small"
@@ -12,7 +13,7 @@ metric = datasets.load_metric("rouge")
 
 ############################## Data ################################
 #load through pandas and turn into Dataset format
-df = pd.read_csv(r'danewsroom.csv', nrows = 10000)
+df = pd.read_csv(r'../NP Exam/danewsroom.csv', nrows = 100)
 df = df.rename(columns={'Unnamed: 0': 'idx'})
 df_small = df[['text', 'summary', 'idx']]
 data = Dataset.from_pandas(df_small)
@@ -58,15 +59,17 @@ model_name = model_checkpoint.split("/")[-1]
 args = Seq2SeqTrainingArguments(
     f"{model_name}-summariser",
     evaluation_strategy = "epoch",
+    save_strategy = "epoch",
     learning_rate=2e-5,
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
     weight_decay=0.01,
     save_total_limit=3,
-    num_train_epochs=1,
+    num_train_epochs=10,
     predict_with_generate=True,
     #fp16=True,
     #push_to_hub=True,
+    load_best_model_at_end = True
 )
 
 data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
@@ -101,16 +104,14 @@ trainer = Seq2SeqTrainer(
     eval_dataset=tokenized_datasets["validation"],
     data_collator=data_collator,
     tokenizer=tokenizer,
-    compute_metrics=compute_metrics
+    compute_metrics=compute_metrics, 
+    callbacks=[EarlyStoppingCallback(early_stopping_patience=3)]
 )
 
 trainer.train()
 
 ######################## Evaluation ##################################
 test_data = dd['test']
-
-# only use 16 training examples for notebook - DELETE LINE FOR FULL TRAINING
-test_data = test_data.select(range(16))
 
 batch_size = 16  # change to 64 for full evaluation
 
@@ -136,7 +137,10 @@ results = test_data.map(generate_summary, batched=True, batch_size=batch_size, r
 pred_str = results["pred"]
 label_str = results["summary"]
 
-rouge_output = rouge.compute(predictions=pred_str, references=label_str, rouge_types=["rouge2"])["rouge2"].mid
+rouge_output = metric.compute(predictions=pred_str, references=label_str, rouge_types=["rouge2"])["rouge2"].mid
 
 np.save('mt5_results.npy', results)
 np.save('mt5_rouge.npy', rouge_output)
+
+
+results = np.load('mt5_results.npy', allow_pickle=True)
