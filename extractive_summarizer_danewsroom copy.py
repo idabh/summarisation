@@ -11,6 +11,18 @@ from nltk.corpus import stopwords # Also contains stopwords in Danish
 from nltk.cluster.util import cosine_distance
 import numpy as np
 import networkx as nx # tool for graphs
+
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics.pairwise import cosine_similarity
+### A different similarity stuff
+def sentence_sim(sent1, sent2):
+    text = sent1+sent2
+    vectorizer = TfidfVectorizer()
+    trsfm=vectorizer.fit_transform(text)
+    #length = len(text)
+    #pd.DataFrame(trsfm.toarray(),columns=vectorizer.get_feature_names(),index=range(0, length))
+
+    return cosine_similarity(trsfm[0], trsfm)
  
 #filedata = chunk['text'][3]
 import re
@@ -43,13 +55,15 @@ def sentence_similarity(sent1, sent2, stopwords=None):
  
     # build the vector for the first sentence
     for w in sent1:
-        if w not in stopwords: # if the word in the sentence is not in the stopwords add 1 
-            vector1[all_words.index(w)] += 1
+        if w in stopwords: # if the word in the sentence is in the stopwords 
+            continue # it will add a 1 to that sentence vector for that word
+        vector1[all_words.index(w)] += 1
  
     # build the vector for the second sentence
     for w in sent2:
-        if w not in stopwords:
-            vector2[all_words.index(w)] += 1                                      
+        if w in stopwords:
+            continue
+        vector2[all_words.index(w)] += 1                                      
 
     dist = cosine_distance(vector1, vector2) # Meaning the cosine similarity is actually only between the stopwords?
     if math.isnan(dist): # if both vectors are 0 they give nan. We need this to be 1 to make the function work
@@ -65,8 +79,8 @@ def build_similarity_matrix(sentences, stop_words):
         for idx2 in range(len(sentences)):
             if idx1 == idx2: #ignore if both are same sentences
                 continue 
-            similarity_matrix[idx1][idx2] = sentence_similarity(sentences[idx1], sentences[idx2], stop_words)
-            
+            #similarity_matrix[idx1][idx2] = sentence_similarity(sentences[idx1], sentences[idx2], stop_words)
+            similarity_matrix[idx1][idx2] = sentence_sim(sentences[idx1], sentences[idx2])
     return similarity_matrix
 
 
@@ -75,8 +89,8 @@ def generate_summary(file_name, top_n=5):
     summarize_text = []
 
     # Step 1 - Read text anc split it
-    sentences = prepare_article(file_name)
-
+    #sentences = prepare_article(file_name)
+    sentences = file_name
     # Step 2 - Generate Similary Martix across sentences
     sentence_similarity_martix = build_similarity_matrix(sentences, stop_words)
 
