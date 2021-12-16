@@ -3,6 +3,7 @@ import datasets
 from datasets import Dataset
 import pandas as pd
 import numpy as np
+from numpy import save
 from sklearn.model_selection import train_test_split
 from transformers import BertTokenizerFast, EncoderDecoderModel, TrainingArguments, Seq2SeqTrainer, EarlyStoppingCallback
 from dataclasses import dataclass, field
@@ -15,7 +16,7 @@ metric = datasets.load_metric("rouge")
 
 ############################## Data ################################
 #load through pandas and turn into Dataset format
-df = pd.read_csv(r'danewsroom.csv', nrows = 100)
+df = pd.read_csv(r'danewsroom.csv', nrows = 100000)
 df = df.rename(columns={'Unnamed: 0': 'idx'})
 df_small = df[['text', 'summary', 'idx']]
 data = Dataset.from_pandas(df_small)
@@ -164,7 +165,7 @@ def compute_metrics(eval_pred):
     result["gen_len"] = np.mean(prediction_lens)
     
     metrics={k: round(v, 4) for k, v in result.items()}
-    pd.DataFrame(metrics).to_csv('bert_metrics.csv')
+    save('bert' + timestr + '_metrics.csv', metrics)
     return metrics
 
 
@@ -211,7 +212,5 @@ label_str = results["summary"]
 
 rouge_output = metric.compute(predictions=pred_str, references=label_str).mid
 
-pd.DataFrame(results).to_csv('bert_results.csv')
-pd.DataFrame(rouge_output).to_csv('bert_rouge.csv')
-#np.save('bert_results.npy', results)
-#np.save('bert_rouge.npy', rouge_output)
+save('bert' + timestr + '_results.csv', results)
+save('bert' + timestr + '_rouge.csv', rouge_output)
