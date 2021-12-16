@@ -18,7 +18,7 @@ metric = datasets.load_metric("rouge")
 #load through pandas and turn into Dataset format
 #df = pd.read_csv(r'/work/NLP/danewsroom.csv', nrows = 10)
 #df = pd.read_csv('/work/Summarization/danewsroom.csv', nrows = 10)
-df = pd.read_csv('danewsroom.csv', nrows = 10)
+df = pd.read_csv('danewsroom.csv', nrows = 150000)
 df = df.rename(columns={'Unnamed: 0': 'idx'})
 df_small = df[['text', 'summary', 'idx']]
 data = Dataset.from_pandas(df_small)
@@ -70,7 +70,7 @@ args = Seq2SeqTrainingArguments(
     per_device_eval_batch_size=batch_size,
     weight_decay=0.01,
     save_total_limit=3,
-    num_train_epochs=1,
+    num_train_epochs=10,
     predict_with_generate=True,
     overwrite_output_dir= True,
     #fp16=True,
@@ -100,7 +100,13 @@ def compute_metrics(eval_pred):
     result["gen_len"] = np.mean(prediction_lens)
     
     metrics={k: round(v, 4) for k, v in result.items()}
-    np.save('mt5_metrics.npy', metrics) 
+    np.save('mt5_metrics.npy', metrics) #doesn't work
+
+    #Ida testing - this works:
+    from numpy import save
+    timestr = time.strftime("%d-%H%M%S")
+    name_woo = timestr + 'mt5_150k_16_12_2021.npy'
+    save('mt5_150k_16_12_2021.npy', metrics)
     return metrics
 
 trainer = Seq2SeqTrainer(
@@ -150,8 +156,8 @@ np.save('mt5_rouge.npy', rouge_output)
 
 #ida trying:
 from numpy import save
-from numpy import savetxt
-save('results_hallelujah.npy', results)
-savetxt('rouge_heureka.csv', rouge_output)
+#timestr = time.strftime("%Y%m%d-%H%M%S")
+save('results_MT5_150k_16_12_2021.npy', results) 
+save('rouge_MT5_150k_16_12_2021.npy', rouge_output)
 
-results = np.load('mt5_results.npy', allow_pickle=True)
+#results = np.load('mt5_results.npy', allow_pickle=True)
