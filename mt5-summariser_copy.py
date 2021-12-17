@@ -18,7 +18,7 @@ metric = datasets.load_metric("rouge")
 #load through pandas and turn into Dataset format
 #df = pd.read_csv(r'/work/NLP/danewsroom.csv', nrows = 10)
 #df = pd.read_csv('/work/Summarization/danewsroom.csv', nrows = 10)
-df = pd.read_csv('danewsroom.csv', nrows = 150000)
+df = pd.read_csv('danewsroom.csv', nrows = 50000)
 df = df.rename(columns={'Unnamed: 0': 'idx'})
 df_small = df[['text', 'summary', 'idx']]
 data = Dataset.from_pandas(df_small)
@@ -105,8 +105,8 @@ def compute_metrics(eval_pred):
     #Ida testing - this works:
     from numpy import save
     timestr = time.strftime("%d-%H%M%S")
-    name_woo = timestr + 'mt5_150k_16_12_2021.npy'
-    save('mt5_150k_16_12_2021.npy', metrics)
+    name_woo = timestr + 'mt5_50k_ep10_16_12_2021.npy'
+    save('mt5_50k_ep10_16_12_2021.npy', metrics)
     return metrics
 
 trainer = Seq2SeqTrainer(
@@ -157,7 +157,7 @@ np.save('mt5_rouge.npy', rouge_output)
 #ida trying:
 from numpy import save
 #timestr = time.strftime("%Y%m%d-%H%M%S")
-save('results_MT5_150k_16_12_2021.npy', results) 
-save('rouge_MT5_150k_16_12_2021.npy', rouge_output)
+save('results_MT5_50k_ep10_16_12_2021.npy', results) 
+save('rouge_MT5_50k_ep10_16_12_2021.npy', rouge_output)
 
 #results = np.load('mt5_results.npy', allow_pickle=True)
