@@ -6,6 +6,8 @@ import operator
 #from nltk.stem import WordNetLemmatizer
 from nltk.corpus import stopwords
 from nltk.tokenize import sent_tokenize,word_tokenize
+nltk.download('punkt')
+nltk.download('stopwords')
 tokenizer = nltk.data.load('tokenizers/punkt/danish.pickle')
 nltk.download('averaged_perceptron_tagger')
 Stopwords = set(stopwords.words('danish'))
@@ -15,6 +17,7 @@ lemmatizer = lemmy.load("da")
 lemmatizer.lemmatize("", "ordene")[0]
 
 import spacy
+#python3 -m spacy download da_core_news_sm
 nlp = spacy.load("da_core_news_sm")
 
 import pandas as pd
@@ -170,7 +173,8 @@ from rouge_score import rouge_scorer
 scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True)
 
 
-df = pd.read_csv(r'../danewsroom.csv', nrows = 10)
+#df = pd.read_csv(r'../danewsroom.csv', nrows = 10)
+df = pd.read_csv(r'Summarization/danewsroom.csv', nrows = 10)
 df["summary"][0] # hmmm correct
 d_text = df["text"][0]
 summarise(d_text, 30)
@@ -215,4 +219,10 @@ output[0]
 # check that the code splits here \n\n
 # Look through code again
 # Why is the first hand-written summary only one sentence?
-# add modules to requirements
+
+#---look at results---
+checking = pd.DataFrame(list(zip(output[1], output[2])), columns =['Human', 'Generated'])
+#pd.set_option('display.max_colwidth', 50)
+checking
+output[1][0] #human
+output[2][0] #extracted

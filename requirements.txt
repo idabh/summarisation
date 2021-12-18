@@ -4,4 +4,6 @@ transformers
 rouge-score 
 nltk
 sentencepiece
+lemmy
+spacy
 # pip install -r /path/to/requirements.txt
