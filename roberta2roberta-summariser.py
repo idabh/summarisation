@@ -140,6 +140,8 @@ training_args = Seq2SeqTrainingArguments(
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
     predict_with_generate=True,
+    evaluation_strategy = "steps",
+    save_strategy = "steps",
     do_train=True,
     do_eval=True,
     logging_steps=2000,  # set to 2000 for full training
@@ -150,7 +152,7 @@ training_args = Seq2SeqTrainingArguments(
     num_train_epochs=1, #uncomment for full training
     overwrite_output_dir=True,
     save_total_limit=1,
-    save_best_model_at_end=True,
+    load_best_model_at_end=True,
     fp16=True, 
 )
 

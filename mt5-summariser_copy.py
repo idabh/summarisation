@@ -50,7 +50,7 @@ tokenized_datasets = dd.map(preprocess_function, batched=True)
 ##################### Fine-tuning ############################
 model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
 timestr = time.strftime("%Y%m%d-%H%M%S")
-batch_size = 16
+batch_size = 4
 args = Seq2SeqTrainingArguments(
     output_dir = "./mt5" + timestr,
     evaluation_strategy = "steps",
