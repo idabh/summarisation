@@ -8,28 +8,19 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM, DataCollatorForSe
 from transformers import EarlyStoppingCallback
 import time
 
-
-
+timestr = time.strftime("%d-%H%M%S")
 nltk.download('punkt')
 model_checkpoint = "google/mt5-small"
 metric = datasets.load_metric("rouge")
 
 ############################## Data ################################
-#load through pandas and turn into Dataset format
-#df = pd.read_csv(r'/work/NLP/danewsroom.csv', nrows = 10)
-#df = pd.read_csv('/work/Summarization/danewsroom.csv', nrows = 10)
-df = pd.read_csv('danewsroom.csv', nrows = 50000)
-df = df.rename(columns={'Unnamed: 0': 'idx'})
-df_small = df[['text', 'summary', 'idx']]
-data = Dataset.from_pandas(df_small)
-
-#test train split
-train_d, test_d = data.train_test_split(test_size=0.2).values() # , random_state = seed
-#and validation
-train_d, val_d = train_d.train_test_split(test_size=0.25).values()
+#load through pandas
+train = Dataset.from_pandas(pd.read_csv("train_d.csv", usecols=['text','summary','idx']))
+test = Dataset.from_pandas(pd.read_csv("test_d.csv", usecols=['text','summary','idx']))
+val = Dataset.from_pandas(pd.read_csv("val_d.csv", usecols=['text','summary','idx']))
 
 #make the datasetdict
-dd = datasets.DatasetDict({"train":train_d,"validation":val_d,"test":test_d})
+dd = datasets.DatasetDict({"train":train,"validation":val,"test":test})
 dd
 
 ####################### Preprocessing #################################
@@ -59,22 +50,24 @@ tokenized_datasets = dd.map(preprocess_function, batched=True)
 ##################### Fine-tuning ############################
 model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
 timestr = time.strftime("%Y%m%d-%H%M%S")
-batch_size = 4
-model_name = model_checkpoint.split("/")[-1]
+batch_size = 16
 args = Seq2SeqTrainingArguments(
     output_dir = "./mt5" + timestr,
-    evaluation_strategy = "epoch",
-    save_strategy = "epoch",
-    learning_rate=2e-5,
+    evaluation_strategy = "steps",
+    save_strategy = "steps",
+    learning_rate=5e-5,
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
-    weight_decay=0.01,
-    save_total_limit=3,
-    num_train_epochs=10,
+    #weight_decay=0.01,
+    logging_steps=2000,  # set to 2000 for full training
+    save_steps=500,  # set to 500 for full training
+    eval_steps=7500,  # set to 7500 for full training
+    warmup_steps=3000,  # set to 3000 for full training
+    save_total_limit=1,
+    num_train_epochs=1,
     predict_with_generate=True,
     overwrite_output_dir= True,
-    #fp16=True,
-    #push_to_hub=True,
+    fp16=True,
     load_best_model_at_end = True
 )
 
@@ -91,23 +84,12 @@ def compute_metrics(eval_pred):
     decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
     
-    result = metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
-    # Extract a few results
-    result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
+    result = metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True, rouge_types=['rouge2'])['rouge2'].mid
     
     # Add mean generated length
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in predictions]
     result["gen_len"] = np.mean(prediction_lens)
-    
-    metrics={k: round(v, 4) for k, v in result.items()}
-    np.save('mt5_metrics.npy', metrics) #doesn't work
-
-    #Ida testing - this works:
-    from numpy import save
-    timestr = time.strftime("%d-%H%M%S")
-    name_woo = timestr + 'mt5_50k_ep10_16_12_2021.npy'
-    save('mt5_50k_ep10_16_12_2021.npy', metrics)
-    return metrics
+    return result
 
 trainer = Seq2SeqTrainer(
     model,
@@ -122,10 +104,15 @@ trainer = Seq2SeqTrainer(
 
 trainer.train()
 
+result=trainer.evaluate()
+from numpy import save
+save('./mt5' + timestr + '_train', result)  
+
 ######################## Evaluation ##################################
+model.to('cuda')
 test_data = dd['test']
 
-batch_size = 16  # change to 64 for full evaluation
+#batch_size = 16  # change to 64 for full evaluation
 
 # map data correctly
 def generate_summary(batch):
@@ -144,20 +131,13 @@ def generate_summary(batch):
 
     return batch
 
-results = test_data.map(generate_summary, batched=True, batch_size=batch_size, remove_columns=["text"])
+results = test_data.map(generate_summary, batched=True, batch_size=batch_size)
 
 pred_str = results["pred"]
 label_str = results["summary"]
 
-rouge_output = metric.compute(predictions=pred_str, references=label_str, rouge_types=["rouge2"])["rouge2"].mid
+rouge_output = metric.compute(predictions=pred_str, references=label_str, use_stemmer=True)
 
-np.save('mt5_results.npy', results)
-np.save('mt5_rouge.npy', rouge_output)
-
-#ida trying:
 from numpy import save
-#timestr = time.strftime("%Y%m%d-%H%M%S")
-save('results_MT5_50k_ep10_16_12_2021.npy', results) 
-save('rouge_MT5_50k_ep10_16_12_2021.npy', rouge_output)
-
-#results = np.load('mt5_results.npy', allow_pickle=True)
+np.save('./mt5' + timestr + '_preds.npy', results)
+np.save('./mt5' + timestr + '_test.npy', rouge_output)

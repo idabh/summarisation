@@ -15,19 +15,13 @@ nltk.download('punkt')
 metric = datasets.load_metric("rouge")
 
 ############################## Data ################################
-#load through pandas and turn into Dataset format
-df = pd.read_csv(r'danewsroom.csv', nrows = 100)
-df = df.rename(columns={'Unnamed: 0': 'idx'})
-df_small = df[['text', 'summary', 'idx']]
-data = Dataset.from_pandas(df_small)
-
-#test train split
-train_d, test_d = data.train_test_split(test_size=0.2).values()
-#and validation
-train_d, val_d = train_d.train_test_split(test_size=0.25).values()
+#load through pandas
+train = Dataset.from_pandas(pd.read_csv("train_d.csv", usecols=['text','summary','idx']))
+test = Dataset.from_pandas(pd.read_csv("test_d.csv", usecols=['text','summary','idx']))
+val = Dataset.from_pandas(pd.read_csv("val_d.csv", usecols=['text','summary','idx']))
 
 #make the datasetdict
-dd = datasets.DatasetDict({"train":train_d,"validation":val_d,"test":test_d})
+dd = datasets.DatasetDict({"train":train,"validation":val,"test":test})
 dd
 
 ####################### Preprocessing #################################
@@ -133,20 +127,12 @@ def compute_metrics(eval_pred):
     decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
     
-    result = metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True)
-    # Extract a few results
-    result = {key: value.mid.fmeasure * 100 for key, value in result.items()}
+    result = metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True, rouge_types=['rouge2'])['rouge2'].mid
     
     # Add mean generated length
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in predictions]
     result["gen_len"] = np.mean(prediction_lens)
-    
-    metrics={k: round(v, 4) for k, v in result.items()}
-    from numpy import save
-    timestr = time.strftime("%d-%H%M%S")
-    timestr1 = timestr + 'roberta_metrics.npy'
-    save(timestr1, metrics)
-    return metrics
+    return result
 
 # set training arguments - these params are not really tuned, feel free to change
 training_args = Seq2SeqTrainingArguments(
@@ -154,18 +140,18 @@ training_args = Seq2SeqTrainingArguments(
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
     predict_with_generate=True,
-    #evaluate_during_training=True,
     do_train=True,
     do_eval=True,
-    logging_steps=2,  # set to 2000 for full training
-    save_steps=16,  # set to 500 for full training
-    eval_steps=4,  # set to 7500 for full training
-    warmup_steps=1,  # set to 3000 for full training
-    max_steps=16, # delete for full training
-    # num_train_epochs=5, uncomment for full training
+    logging_steps=2000,  # set to 2000 for full training
+    save_steps=500,  # set to 500 for full training
+    eval_steps=7500,  # set to 7500 for full training
+    warmup_steps=3000,  # set to 3000 for full training
+    #max_steps=16, # delete for full training
+    num_train_epochs=1, #uncomment for full training
     overwrite_output_dir=True,
-    save_total_limit=3,
-    #fp16=True, 
+    save_total_limit=1,
+    save_best_model_at_end=True,
+    fp16=True, 
 )
 
 # instantiate trainer
@@ -178,13 +164,16 @@ trainer = Seq2SeqTrainer(
 )
 trainer.train()
 
+result=trainer.evaluate()
+from numpy import save
+save('./roberta' + timestr + '_train', result)  
+
 ######################## Evaluation ##################################
-model = EncoderDecoderModel.from_pretrained("./roberta" + timestr + "/checkpoint-16")
-model.to("cuda")
+roberta_shared.to("cuda")
 
-test_data = dd['test'].select(range(10))
+test_data = dd['test']
 
-batch_size = 16  # change to 64 for full evaluation
+#batch_size = 16  # change to 64 for full evaluation
 
 # map data correctly
 def generate_summary(batch):
@@ -194,7 +183,7 @@ def generate_summary(batch):
     input_ids = inputs.input_ids.to("cuda")
     attention_mask = inputs.attention_mask.to("cuda")
 
-    outputs = model.generate(input_ids, attention_mask=attention_mask)
+    outputs = roberta_shared.generate(input_ids, attention_mask=attention_mask)
 
     # all special tokens including will be removed
     output_str = tokenizer.batch_decode(outputs, skip_special_tokens=True)
@@ -203,13 +192,13 @@ def generate_summary(batch):
 
     return batch
 
-results = test_data.map(generate_summary, batched=True, batch_size=batch_size, remove_columns=["text"])
+results = test_data.map(generate_summary, batched=True, batch_size=batch_size)
 
 pred_str = results["pred"]
 label_str = results["summary"]
 
-rouge_output = metric.compute(predictions=pred_str, references=label_str)
+rouge_output = metric.compute(predictions=pred_str, references=label_str, use_stemmer=True)
 
 from numpy import save
-save('./roberta' + timestr + '_results', results)
-save('./roberta' + timestr + '_rouge', rouge_output)
+save('./roberta' + timestr + '_preds', results)
+save('./roberta' + timestr + '_test', rouge_output)
