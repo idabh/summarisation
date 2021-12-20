@@ -199,11 +199,8 @@ import pandas as pd
 # Rouge scores
 from rouge_score import rouge_scorer
 
-scorer = rouge_scorer.RougeScorer(['rouge1', 'rougeL'], use_stemmer=True) # is stemmer good for Danish?
-
 def rouge_output(pred, ref, rouge_type):
-    # make a RougeScorer object with rouge_types=['rouge1']
-    scorer = rouge_scorer.RougeScorer([rouge_type])
+    scorer = rouge_scorer.RougeScorer([rouge_type]) # maybe add use_stemmer=True?
 
     # a dictionary that will contain the results
     results = {'precision': [], 'recall': [], 'fmeasure': []}
@@ -228,13 +225,12 @@ def rouge_output(pred, ref, rouge_type):
 
     return result
 
-rouge_output(pred, hyp)
-# Lists for output
-rouge_scores = []
-summaries = []
-filesummaries = []
 
 def summarise_danewsroom(df, len_summary):
+    # Lists for output
+    rouge_scores = []
+    summaries = []
+    filesummaries = []
     for iter_num in range(len(df)):
 
         # do things with chunk
@@ -251,13 +247,6 @@ def summarise_danewsroom(df, len_summary):
 
         filesummaries.append(filesummary)
         summaries.append(summary)
-    #else:
-        #print("moving on")
-        #continue
-        
-        # break
-        if iter_num == 100:
-            break # remove
 
         # Output a mean rouge score
         rouge_scores.append(scores)
@@ -270,21 +259,32 @@ def summarise_danewsroom(df, len_summary):
 
     return list([results, filesummaries, summaries])
 
-df = pd.read_csv(r'../danewsroom.csv', nrows = 2)
+df = pd.read_csv(r'../danewsroom.csv', nrows = 5)
 # Run on the first n samples
-output = summarise_danewsroom(df, 70)
+output = summarise_danewsroom(df, 30)
 output[0]
-output[1][6]
-output[2][6]
-df["text"][]
+output[1]
+output[2]
+df["text"]
+output[2]
+
 
 # Run on the more extractive samples
 extractive = df[df["density"] > 8.1875] 
 len(df[df["density"] > 8.1875])
 extractive = pd.DataFrame.reset_index(extractive)
-output_ex = summarise_danewsroom(extractive, 35)
+output_ex = summarise_danewsroom(extractive, 30)
 output_ex[0]
+output_ex[1]
+output_ex[2]
 
 # To do 
 # Look through code again
 # add the other two rouge measures
+
+#---look at results---
+checking = pd.DataFrame(list(zip(output[1], output[2])), columns =['Human', 'Generated'])
+#pd.set_option('display.max_colwidth', 50)
+checking
+output[1][0] #human
+output[2][0] #extracted
