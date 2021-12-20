@@ -1,5 +1,11 @@
-from tf_idf_summariser_scr import summarise_danewsroom
+from tf_idf_summariser_scr import summarise_danewsroom, word_tokenize
 import pandas as pd
+import numpy as np
+
+
+import nltk
+from nltk.tokenize import word_tokenize
+tokenizer = nltk.data.load('tokenizers/punkt/danish.pickle')
 
 df = pd.read_csv(r'../danewsroom.csv', nrows = 500)
 # Run on the first n samples
@@ -25,3 +31,22 @@ checking = pd.DataFrame(list(zip(output[1], output[2])), columns =['Human', 'Gen
 checking
 output[1][0] #human
 output[2][0] #extracted
+
+
+# What is the mean length of the reference summaries?
+length = []
+text_length = []
+for summary, text in zip(df["summary"], df["text"]):
+    words = word_tokenize(summary)
+    length.append(len(words))
+    text_tokens = word_tokenize(text)
+    text_length.append(len(text_tokens))
+
+np.mean(length)
+np.mean(text_length)
+
+np.mean(length)/np.mean(text_length)
+
+# From the 500 samples the summaries are only ~6% of the text
+
+
