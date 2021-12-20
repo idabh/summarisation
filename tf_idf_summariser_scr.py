@@ -1,5 +1,5 @@
+# Inspiration from https://medium.com/voice-tech-podcast/automatic-extractive-text-summarization-using-tfidf-3fc9a7b26f5 
 import nltk
-import os
 import re
 import math
 import operator
@@ -16,6 +16,23 @@ lemmatizer.lemmatize("", "ordene")[0]
 import spacy
 nlp = spacy.load("da_core_news_sm")
 import pandas as pd
+from nltk.tokenize.treebank import TreebankWordDetokenizer
+from nltk.stem.snowball import SnowballStemmer
+stemmer = SnowballStemmer("danish")
+
+
+def stem_words(words):
+    '''
+    Stems words in danish using the Snowballstemmer from nltk
+    Args: The words to be stemmed 
+    Return: List of stemmed words detokenized
+    '''   
+    tokens = word_tokenize(words, language = 'danish')
+    stemmed_words = []
+    for word in tokens:
+       stemmed_words.append(stemmer.stem(word))
+    stemmed_words = TreebankWordDetokenizer().detokenize(stemmed_words)
+    return stemmed_words
 
 def lemmatize_words(words):
     '''
@@ -66,7 +83,7 @@ def pos_tagging(text):
         tag = token.pos_
         if tag == "NOUN" or tag == "VERB":
             pos_tagged_noun_verb.append(token)
-    return pos_tagged_noun_verb # Maybe problem with having no ' ' around the words
+    return pos_tagged_noun_verb 
 
 def tf_score(word,sentence):
     '''
@@ -110,10 +127,10 @@ def tf_idf_score(tf,idf):
     '''
     return tf*idf
 
-def word_tfidf(dict_freq,word,sentences,sentence):
+def word_tfidf(word,sentences,sentence):
     '''
     Calculates the tf_idf score for a given word using the tf, idf and tf_idf functions.
-    Args: The dict of frequencies, the word, the text tokenized sentences and the sentence with the word. 
+    Args: The word, the text tokenized sentences and the sentence with the word. 
     Return: The tf_idf score for that word
     '''
     tf = tf_score(word,sentence)
@@ -123,31 +140,36 @@ def word_tfidf(dict_freq,word,sentences,sentence):
 
 def sentence_importance(sentence,dict_freq,sentences):
     '''
-    Calculates the sentence importance score. 
+    Calculates the sentence importance score using the tf-idf score function on the lemmatized nouns and verbs. 
     Args: The sentence to calculate score, all tokenized sentences from the text and the dictionary of frequencies. 
     Return: The sentence importance score
     '''
-     sentence_score = 0
-     sentence = remove_special_characters(str(sentence)) 
-     sentence = re.sub(r'\d+', '', sentence)
-     pos_tagged_sentence = [] 
-     no_of_sentences = len(sentences)
-     pos_tagged_sentence = pos_tagging(sentence) 
-     for word in pos_tagged_sentence:
-         word = word.text
-         if word.lower() not in Stopwords and word not in Stopwords and len(word)>1: 
-             word = word.lower()
-             word = lemmatizer.lemmatize("", word)[0]
-             sentence_score = sentence_score + word_tfidf(dict_freq,word,sentences,sentence)          
-     return sentence_score
+    
+    sentence = remove_special_characters(str(sentence)) 
+    sentence = re.sub(r'\d+', '', sentence)
+    pos_tagged_sentence = [] 
+    no_of_sentences = len(sentences)
+    pos_tagged_sentence = pos_tagging(sentence) 
+
+    sentence_score = 0
+    for word in pos_tagged_sentence:
+        word = word.text
+        if word.lower() not in Stopwords and word not in Stopwords and len(word)>1: 
+            word = word.lower()
+            word = lemmatizer.lemmatize("", word)[0]
+            sentence_score = sentence_score + word_tfidf(word,sentences,sentence)          
+    return sentence_score
 
 def summarise(text, retain_input):
     '''
-    Summarises
-    Args: The dict of frequencies, the word, the text tokenized sentences and the sentence with the word. 
-    Return: The tf_idf score for that word
+    Summarises a text by extracting the most important sentences using tf-idf scores
+    Args: The text as a string to be sumarised and the percentage of the original text to keep
+    Return: A summary as a string
     '''
+    # Tokenize sentences meaning seperating each sentence in a text 
     tokenized_sentence = tokenizer.tokenize(text) # also removes the \n\n
+    
+    # Preprocesses the text to retrieve the word_freq
     text = remove_special_characters(str(text)) # also removes the \n\n
     text = re.sub(r'\d+', '', text) # removes numbers
     tokenized_words_with_stopwords = word_tokenize(text, language = 'danish')
@@ -157,6 +179,7 @@ def summarise(text, retain_input):
     tokenized_words = lemmatize_words(tokenized_words) 
     word_freq = freq(tokenized_words) # Get frequencies of the lemmatized words
 
+    # Number of sentences in the summary
     input_user = retain_input
     no_of_sentences = int((input_user * len(tokenized_sentence))/100) # number of sentecences for the summary output
     
@@ -199,14 +222,23 @@ import pandas as pd
 # Rouge scores
 from rouge_score import rouge_scorer
 
-def rouge_output(pred, ref, rouge_type):
-    scorer = rouge_scorer.RougeScorer([rouge_type]) # maybe add use_stemmer=True?
+def rouge_output(pred, ref, rouge_type, stemmer):
+    '''
+    Calculates rouge scores as a mean of scores from all texts
+    Args: The predicted summary, the reference summary and the rouge_type e.g. 'rouge1'. and stemmer = True/False if stemming should be used. 
+    Return: A dictionary containing the mean value for precision, recall and fmeasure
+    '''
+
+    scorer = rouge_scorer.RougeScorer([rouge_type]) # Rouge uses porter stemmer which is not for Danish - try snowball
 
     # a dictionary that will contain the results
     results = {'precision': [], 'recall': [], 'fmeasure': []}
 
     # for each of the hypothesis and reference documents pair
     for (h, r) in zip(pred, ref):
+        if stemmer == True:
+            h = stem_words(h)
+            r = stem_words(r)
         # computing the ROUGE
         score = scorer.score(h, r)
         # separating the measurements
@@ -227,8 +259,13 @@ def rouge_output(pred, ref, rouge_type):
 
 
 def summarise_danewsroom(df, len_summary):
+    '''
+    Loops over texts in the danewsroom dataset and summarises using the summarise function
+    Args: The pandas df containing the danewsroom data and the length of the summary as percentage e.g. 20
+    Return: A  list[dict, list, list] where the dict is the rouge mean scores overall. 
+    The first list is the reference summaries and the second list is the predicted summaries.
+    '''
     # Lists for output
-    rouge_scores = []
     summaries = []
     filesummaries = []
     for iter_num in range(len(df)):
@@ -241,50 +278,25 @@ def summarise_danewsroom(df, len_summary):
         #summary = " ".join(map(str, summary)) # from list of sentences to a string object
             
         # Rouge scores
-        scores = scorer.score(filesummary, summary)
+        #scores = scorer.score(stem_words(filesummary), stem_words(summary))
           
-        rouge_scores.append(scores)
+        #rouge_scores.append(scores)
 
         filesummaries.append(filesummary)
         summaries.append(summary)
 
         # Output a mean rouge score
-        rouge_scores.append(scores)
+        #rouge_scores.append(scores)
         
-    mean_scores_r1 = rouge_output(summaries, filesummaries, 'rouge1')  
-    mean_scores_r2 = rouge_output(summaries, filesummaries, 'rouge2') 
-    mean_scores_rL = rouge_output(summaries, filesummaries, 'rougeL')   
+    mean_scores_r1 = rouge_output(summaries, filesummaries, 'rouge1', stemmer = True)  
+    mean_scores_r2 = rouge_output(summaries, filesummaries, 'rouge2',  stemmer = True) 
+    mean_scores_rL = rouge_output(summaries, filesummaries, 'rougeL',  stemmer = True)   
 
     results = {'rouge1': mean_scores_r1, 'rouge2': mean_scores_r2, 'rougeL': mean_scores_rL}
 
-    return list([results, filesummaries, summaries])
-
-df = pd.read_csv(r'../danewsroom.csv', nrows = 5)
-# Run on the first n samples
-output = summarise_danewsroom(df, 30)
-output[0]
-output[1]
-output[2]
-df["text"]
-output[2]
+    return [results, filesummaries, summaries]
 
 
-# Run on the more extractive samples
-extractive = df[df["density"] > 8.1875] 
-len(df[df["density"] > 8.1875])
-extractive = pd.DataFrame.reset_index(extractive)
-output_ex = summarise_danewsroom(extractive, 30)
-output_ex[0]
-output_ex[1]
-output_ex[2]
 
-# To do 
-# Look through code again
-# add the other two rouge measures
 
-#---look at results---
-checking = pd.DataFrame(list(zip(output[1], output[2])), columns =['Human', 'Generated'])
-#pd.set_option('display.max_colwidth', 50)
-checking
-output[1][0] #human
-output[2][0] #extracted
+
