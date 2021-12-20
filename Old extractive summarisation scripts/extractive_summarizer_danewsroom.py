@@ -113,9 +113,9 @@ filesummaries = []
 
 import csv
 #df = pd.read_csv('../../NP Exam/danewsroom.csv', chunksize=10000, iterator=True)
-df = pd.read_csv('NP Exam/danewsroom.csv', nrows=100)
+df = pd.read_csv('../danewsroom.csv', nrows=100)
 
-filename =file df['text'][1]
+filename = df['text'][1]
 
 def summarise_danewsroom(df):
     for iter_num in range(len(df)):
@@ -146,8 +146,8 @@ def summarise_danewsroom(df):
 
 # I am a bit confused. Seems to me that the similarity is only between the stopwords.. which is weird. It is supposed to be between everything else but stopwords
 output = summarise_danewsroom(df)
-print(output[0][29])
+print(output[2][29])
 
-
+filename = df['text'][29]
 
 
