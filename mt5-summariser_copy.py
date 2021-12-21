@@ -19,6 +19,10 @@ train = Dataset.from_pandas(pd.read_csv("train_d.csv", usecols=['text','summary'
 test = Dataset.from_pandas(pd.read_csv("test_d.csv", usecols=['text','summary','idx']))
 val = Dataset.from_pandas(pd.read_csv("val_d.csv", usecols=['text','summary','idx']))
 
+# train = train.select(range(10000))
+# val = val.select(range(1000))
+# test = test.select(range(100))
+
 #make the datasetdict
 dd = datasets.DatasetDict({"train":train,"validation":val,"test":test})
 dd
@@ -26,7 +30,7 @@ dd
 ####################### Preprocessing #################################
 tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
-if model_checkpoint in ["google/mtf5-small"]:
+if model_checkpoint in ["google/mt5-small"]:
     prefix = "summarize: "
 else:
     prefix = ""
@@ -49,7 +53,6 @@ tokenized_datasets = dd.map(preprocess_function, batched=True)
 
 ##################### Fine-tuning ############################
 model = AutoModelForSeq2SeqLM.from_pretrained(model_checkpoint)
-timestr = time.strftime("%Y%m%d-%H%M%S")
 batch_size = 4
 args = Seq2SeqTrainingArguments(
     output_dir = "./mt5" + timestr,
@@ -59,16 +62,17 @@ args = Seq2SeqTrainingArguments(
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
     #weight_decay=0.01,
-    logging_steps=2000,  # set to 2000 for full training
-    save_steps=500,  # set to 500 for full training
-    eval_steps=7500,  # set to 7500 for full training
-    warmup_steps=3000,  # set to 3000 for full training
+    #logging_steps=2000,  # set to 2000 for full training
+    #save_steps=500,  # set to 500 for full training
+    #eval_steps=7500,  # set to 7500 for full training
+    #warmup_steps=3000,  # set to 3000 for full training
     save_total_limit=1,
     num_train_epochs=1,
     predict_with_generate=True,
     overwrite_output_dir= True,
     fp16=True,
-    load_best_model_at_end = True
+    load_best_model_at_end = True,
+    metric_for_best_model='rouge2'
 )
 
 data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
@@ -84,12 +88,16 @@ def compute_metrics(eval_pred):
     decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
     
-    result = metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True, rouge_types=['rouge2'])['rouge2'].mid
+    
+    result = metric.compute(predictions=decoded_preds, references=decoded_labels)
+    result = {key: value.mid.fmeasure for key, value in result.items()}
     
     # Add mean generated length
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in predictions]
     result["gen_len"] = np.mean(prediction_lens)
-    return result
+
+    metrics={k: round(v, 4) for k, v in result.items()}
+    return metrics
 
 trainer = Seq2SeqTrainer(
     model,
@@ -136,7 +144,7 @@ results = test_data.map(generate_summary, batched=True, batch_size=batch_size)
 pred_str = results["pred"]
 label_str = results["summary"]
 
-rouge_output = metric.compute(predictions=pred_str, references=label_str, use_stemmer=True)
+rouge_output = metric.compute(predictions=pred_str, references=label_str)
 
 from numpy import save
 np.save('./mt5' + timestr + '_preds.npy', results)
