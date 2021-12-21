@@ -65,14 +65,14 @@ args = Seq2SeqTrainingArguments(
     #logging_steps=2000,  # set to 2000 for full training
     #save_steps=500,  # set to 500 for full training
     #eval_steps=7500,  # set to 7500 for full training
-    #warmup_steps=3000,  # set to 3000 for full training
+    #warmup_steps=3000,  # set to 3000 lsor full training
     save_total_limit=1,
     num_train_epochs=1,
     predict_with_generate=True,
     overwrite_output_dir= True,
-    fp16=True,
+    #fp16=True,
     load_best_model_at_end = True,
-    metric_for_best_model='rouge2'
+    metric_for_best_model='loss'
 )
 
 data_collator = DataCollatorForSeq2Seq(tokenizer, model=model)
