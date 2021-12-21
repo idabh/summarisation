@@ -15,9 +15,9 @@ metric = datasets.load_metric("rouge")
 
 ############################## Data ################################
 #load through pandas
-train = Dataset.from_pandas(pd.read_csv("./danewsroom/train_d.csv", usecols=['text','summary','idx']))
-test = Dataset.from_pandas(pd.read_csv("./danewsroom/test_d.csv", usecols=['text','summary','idx']))
-val = Dataset.from_pandas(pd.read_csv("./danewsroom/val_d.csv", usecols=['text','summary','idx']))
+train = Dataset.from_pandas(pd.read_csv("train_d.csv", usecols=['text','summary','idx']))
+test = Dataset.from_pandas(pd.read_csv("test_d.csv", usecols=['text','summary','idx']))
+val = Dataset.from_pandas(pd.read_csv("val_d.csv", usecols=['text','summary','idx']))
 
 #make the datasetdict
 dd = datasets.DatasetDict({"train":train,"validation":val,"test":test})
@@ -50,7 +50,7 @@ def process_data_to_model_inputs(batch):
   return batch
 
 # only use 32 training examples for notebook - DELETE LINE FOR FULL TRAINING
-train_data = dd['train'].select(range(1000))
+train_data = dd['train']#.select(range(32))
 
 train_data = train_data.map(
     process_data_to_model_inputs, 
@@ -64,7 +64,7 @@ train_data.set_format(
 
 
 # only use 16 training examples for notebook - DELETE LINE FOR FULL TRAINING
-val_data = dd['validation'].select(range(100))
+val_data = dd['validation']#.select(range(16))
 
 val_data = val_data.map(
     process_data_to_model_inputs, 
@@ -87,7 +87,6 @@ bert2bert.config.pad_token_id = tokenizer.pad_token_id
 # sensible parameters for beam search
 bert2bert.config.vocab_size = bert2bert.config.decoder.vocab_size
 bert2bert.config.max_length = 142
-bert2bert.config.generation_max_length = 128
 bert2bert.config.min_length = 56
 bert2bert.config.no_repeat_ngram_size = 3
 bert2bert.config.early_stopping = True
@@ -126,20 +125,18 @@ training_args = Seq2SeqTrainingArguments(
     predict_with_generate=True,
     evaluation_strategy = "steps",
     save_strategy = "steps",
-    #do_train=True,
-    #do_eval=True,
-    logging_steps=100,  # set to 1000 for full training
-    save_steps=50,  # set to 500 for full training
-    eval_steps=50,  # set to 8000 for full training
-    warmup_steps=200,  # set to 2000 for full training
+    do_train=True,
+    do_eval=True,
+    logging_steps=1000,  # set to 1000 for full training
+    save_steps=500,  # set to 500 for full training
+    eval_steps=500,  # set to 8000 for full training
+    warmup_steps=2000,  # set to 2000 for full training
     #max_steps=16, # delete for full training
     num_train_epochs=1,
     overwrite_output_dir=True,
-    #save_total_limit=1,
+    save_total_limit=1,
     load_best_model_at_end=True,
-    metric_for_best_model='rouge2',
-    generation_max_length=128,
-    #fp16=True, 
+    fp16=True, 
 )
 
 def compute_metrics(eval_pred):
@@ -153,15 +150,12 @@ def compute_metrics(eval_pred):
     decoded_preds = ["\n".join(nltk.sent_tokenize(pred.strip())) for pred in decoded_preds]
     decoded_labels = ["\n".join(nltk.sent_tokenize(label.strip())) for label in decoded_labels]
     
-    result = metric.compute(predictions=decoded_preds, references=decoded_labels)
-    result = {key: value.mid.fmeasure for key, value in result.items()}
-    
+    result = metric.compute(predictions=decoded_preds, references=decoded_labels, use_stemmer=True, rouge_types=['rouge2'])['rouge2'].mid  
     # Add mean generated length
     prediction_lens = [np.count_nonzero(pred != tokenizer.pad_token_id) for pred in predictions]
     result["gen_len"] = np.mean(prediction_lens)
-
-    metrics={k: round(v, 4) for k, v in result.items()}
-    return metrics
+    
+    return result
 
 # instantiate trainer
 trainer = Seq2SeqTrainer(
@@ -173,14 +167,14 @@ trainer = Seq2SeqTrainer(
 )
 trainer.train()
 
-result=trainer.evaluate(max_length=128, num_beams=4)
+result=trainer.evaluate()
 from numpy import save
 save('./bert' + timestr + '_train', result)  
 
 ######################## Evaluation ##################################
-bert2bert.to("cpu")
+bert2bert.to("cuda")
 
-test_data = dd['test'].select(range(10))
+test_data = dd['test']
 
 #batch_size = 64  # change to 64 for full evaluation
 
@@ -189,8 +183,8 @@ def generate_summary(batch):
     # Tokenizer will automatically set [BOS] <text> [EOS]
     # cut off at BERT max length 512
     inputs = tokenizer(batch["text"], padding="max_length", truncation=True, max_length=512, return_tensors="pt")
-    input_ids = inputs.input_ids.to("cpu")
-    attention_mask = inputs.attention_mask.to("cpu")
+    input_ids = inputs.input_ids.to("cuda")
+    attention_mask = inputs.attention_mask.to("cuda")
 
     outputs = bert2bert.generate(input_ids, attention_mask=attention_mask)
 
@@ -206,7 +200,7 @@ results = test_data.map(generate_summary, batched=True, batch_size=batch_size)
 pred_str = results["pred"]
 label_str = results["summary"]
 
-rouge_output = metric.compute(predictions=pred_str, references=label_str, use_stemmer=False)
+rouge_output = metric.compute(predictions=pred_str, references=label_str, use_stemmer=True)
 
 from numpy import save
 save('./bert' + timestr + '_preds', results)
