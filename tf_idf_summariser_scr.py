@@ -53,6 +53,7 @@ def remove_special_characters(text):
     Return: The text without special characters 
     '''    
     text = re.sub('\W+',' ', text)
+    text = re.sub(r'_', '', text) # remove underscore from places
     return text
 
 def freq(words):
@@ -160,10 +161,10 @@ def sentence_importance(sentence,dict_freq,sentences):
             sentence_score = sentence_score + word_tfidf(word,sentences,sentence)          
     return sentence_score
 
-def summarise(text, retain_input):
+def summarise(text, summary_length):
     '''
     Summarises a text by extracting the most important sentences using tf-idf scores
-    Args: The text as a string to be sumarised and the percentage of the original text to keep
+    Args: The text as a string to be sumarised and the number of sentences to keep for the summary. 
     Return: A summary as a string
     '''
     # Tokenize sentences meaning seperating each sentence in a text 
@@ -178,10 +179,6 @@ def summarise(text, retain_input):
     tokenized_words = [word.lower() for word in tokenized_words]
     tokenized_words = lemmatize_words(tokenized_words) 
     word_freq = freq(tokenized_words) # Get frequencies of the lemmatized words
-
-    # Number of sentences in the summary
-    input_user = retain_input
-    no_of_sentences = int((input_user * len(tokenized_sentence))/100) # number of sentecences for the summary output
     
     # Calculate sentence importance from tokenized sentences
     c = 1
@@ -194,10 +191,10 @@ def summarise(text, retain_input):
     cnt = 0
     summary = []
     sentence_no = []
-
+    max_length = summary_length
     # take out the most important sentences indexes
     for word_prob in sentence_with_importance:
-        if cnt < no_of_sentences:
+        if cnt < max_length:
             sentence_no.append(word_prob[0])
             cnt = cnt+1
         else:
@@ -275,19 +272,12 @@ def summarise_danewsroom(df, len_summary):
         filesummary = df['summary'][iter_num]
         
         summary = summarise(filedata, len_summary) 
-        #summary = " ".join(map(str, summary)) # from list of sentences to a string object
-            
-        # Rouge scores
-        #scores = scorer.score(stem_words(filesummary), stem_words(summary))
-          
-        #rouge_scores.append(scores)
 
+        # save the summary and reference
         filesummaries.append(filesummary)
         summaries.append(summary)
 
         # Output a mean rouge score
-        #rouge_scores.append(scores)
-        
     mean_scores_r1 = rouge_output(summaries, filesummaries, 'rouge1', stemmer = True)  
     mean_scores_r2 = rouge_output(summaries, filesummaries, 'rouge2',  stemmer = True) 
     mean_scores_rL = rouge_output(summaries, filesummaries, 'rougeL',  stemmer = True)   
