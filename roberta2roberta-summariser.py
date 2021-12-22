@@ -16,9 +16,9 @@ metric = datasets.load_metric("rouge")
 
 ############################## Data ################################
 #load through pandas
-train = Dataset.from_pandas(pd.read_csv("./danewsroom/train_d.csv", usecols=['text','summary','idx']))
-test = Dataset.from_pandas(pd.read_csv("./danewsroom/test_d.csv", usecols=['text','summary','idx']))
-val = Dataset.from_pandas(pd.read_csv("./danewsroom/val_d.csv", usecols=['text','summary','idx']))
+train = Dataset.from_pandas(pd.read_csv("train_d.csv", usecols=['text','summary','idx']))
+test = Dataset.from_pandas(pd.read_csv("test_d.csv", usecols=['text','summary','idx']))
+val = Dataset.from_pandas(pd.read_csv("val_d.csv", usecols=['text','summary','idx']))
 
 #make the datasetdict
 dd = datasets.DatasetDict({"train":train,"validation":val,"test":test})
@@ -49,7 +49,7 @@ def process_data_to_model_inputs(batch):
     return batch  
 
 # only use 32 training examples for notebook - DELETE LINE FOR FULL TRAINING
-train_data = dd['train'].select(range(100))
+train_data = dd['train']#.select(range(100))
 
 train_data = train_data.map(
     process_data_to_model_inputs, 
@@ -63,7 +63,7 @@ train_data.set_format(
 
 
 # only use 16 training examples for notebook - DELETE LINE FOR FULL TRAINING
-val_data = dd['validation'].select(range(10))
+val_data = dd['validation']#.select(range(10))
 
 val_data = val_data.map(
     process_data_to_model_inputs, 
@@ -125,10 +125,10 @@ training_args = Seq2SeqTrainingArguments(
     #save_strategy = "steps",
     do_train=True,
     do_eval=True,
-    logging_steps=20,  # set to 2000 for full training
-    save_steps=50,  # set to 500 for full training
-    eval_steps=50,  # set to 7500 for full training
-    warmup_steps=30,  # set to 3000 for full training
+    logging_steps=2000,  # set to 2000 for full training
+    save_steps=500,  # set to 500 for full training
+    eval_steps=500,  # set to 7500 for full training
+    warmup_steps=3000,  # set to 3000 for full training
     #max_steps=16, # delete for full training
     num_train_epochs=1, #uncomment for full training
     overwrite_output_dir=True,
@@ -173,9 +173,9 @@ from numpy import save
 save('./roberta' + timestr + '_train', result)  
 
 ######################## Evaluation ##################################
-roberta_shared.to("cpu")
+roberta_shared.to("cuda")
 
-test_data = dd['test'].select(range(10))
+test_data = dd['test']#.select(range(10))
 
 #batch_size = 16  # change to 64 for full evaluation
 
@@ -184,8 +184,8 @@ def generate_summary(batch):
     # Tokenizer will automatically set [BOS] <text> [EOS]
     # cut off at BERT max length 512
     inputs = tokenizer(batch["text"], padding="max_length", truncation=True, max_length=512, return_tensors="pt")
-    input_ids = inputs.input_ids.to("cpu")
-    attention_mask = inputs.attention_mask.to("cpu")
+    input_ids = inputs.input_ids.to("cuda")
+    attention_mask = inputs.attention_mask.to("cuda")
 
     outputs = roberta_shared.generate(input_ids, attention_mask=attention_mask)
 
