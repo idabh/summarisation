@@ -29,7 +29,7 @@ tokenizer = RobertaTokenizerFast.from_pretrained("flax-community/roberta-base-da
 
 batch_size=4  # change to 16 for full training
 encoder_max_length=512
-decoder_max_length=64
+decoder_max_length=128
 
 def process_data_to_model_inputs(batch):                                                               
     # Tokenizer will automatically set [BOS] <text> [EOS]                                               
@@ -85,7 +85,7 @@ roberta_shared.config.eos_token_id = tokenizer.eos_token_id
 
 # sensible parameters for beam search
 # set decoding params                               
-roberta_shared.config.max_length = 64
+roberta_shared.config.max_length = 128
 roberta_shared.config.early_stopping = True
 roberta_shared.config.no_repeat_ngram_size = 3
 roberta_shared.config.length_penalty = 2.0
@@ -168,7 +168,7 @@ trainer = Seq2SeqTrainer(
 )
 trainer.train()
 
-result=trainer.evaluate(max_length=64, num_beams=4)
+result=trainer.evaluate(max_length=128, num_beams=4)
 from numpy import save
 save('./roberta' + timestr + '_train', result)  
 
