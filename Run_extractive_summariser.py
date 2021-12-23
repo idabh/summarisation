@@ -1,65 +1,139 @@
 from tf_idf_summariser_scr import summarise_danewsroom, word_tokenize, summarise_danewsroom
 import pandas as pd
 import numpy as np
-
-
-train = pd.read_csv(r'train_d.csv')
-val = pd.read_csv(r'val_d.csv')
-test = pd.read_csv(r'test_d.csv')
-frames = [train, val, test]
-dd = pd.concat(frames)
-
 import nltk
 from nltk.tokenize import word_tokenize
 tokenizer = nltk.data.load('tokenizers/punkt/danish.pickle')
-dd = pd.DataFrame.reset_index(dd)
+import json
+import codecs
+import csv
 
-df = pd.read_csv(r'../danewsroom.csv', nrows = 10)
-# Run on the first n samples
+test = pd.read_csv(r'test_d.csv')
+dd = pd.DataFrame.reset_index(test)
+# Run on the altogether test samples
 output = summarise_danewsroom(dd, 3)
-output[0]
 
-d = dd[48:50]
-d = pd.DataFrame.reset_index(d)
-output = summarise_danewsroom(d, 3)
+with open('result_test_d_rouge.txt', 'w') as convert_file:
+     convert_file.write(json.dumps(output[0]))
 
 
+with open('result_test_d_references.txt', 'w', encoding='utf8') as convert_file:
+    for line in output[1]:
+        convert_file.write(line)
+        convert_file.write('\n')
 
-# Run on the more extractive samples
-df = pd.read_csv(r'../danewsroom.csv', nrows = 1500)
+with open('result_test_d_summaries.txt', 'w', encoding='utf8') as convert_file:
+    for line in output[2]:
+        convert_file.write(line)
+        convert_file.write('\n')
+############
 
-extractive = df[df["density"] > 8.1875] 
-len(df[df["density"] > 8.1875])
-extractive_500 = extractive[0:500]
-extractive = pd.DataFrame.reset_index(extractive_500)
-output_ex = summarise_danewsroom(extractive, 2)
-output_ex[0]
+### extractive
+test = pd.read_csv(r'ex_test.csv')
+dd = pd.DataFrame.reset_index(test)
+# Run on the altogether test samples
+output = summarise_danewsroom(dd, 3)
 
-#-- look at scores --
-output[0] # make a table with the scores?
+with open('result_test_ex_rouge.txt', 'w') as convert_file:
+     convert_file.write(json.dumps(output[0]))
 
-#---look at results of the texts summarisation ---
-checking = pd.DataFrame(list(zip(output_ex[1], output_ex[2])), columns =['Human', 'Generated'])
-#pd.set_option('display.max_colwidth', 50)
-checking["Generated"][3]
-output[1][2] #human
-output[2][2] #extracted
+with open('result_test_ex_references.txt', 'w', encoding='utf8') as convert_file:
+    for line in output[1]:
+        convert_file.write(line)
+        convert_file.write('\n')
+
+with open('result_test_ex_summaries.txt', 'w', encoding='utf8') as convert_file:
+    for line in output[2]:
+        convert_file.write(line)
+        convert_file.write('\n')
+
+# mixed
+test = pd.read_csv(r'mix_test.csv')
+dd = pd.DataFrame.reset_index(test)
+# Run on the altogether test samples
+output = summarise_danewsroom(dd, 3)
+
+with open('result_test_mix_rouge.txt', 'w') as convert_file:
+     convert_file.write(json.dumps(output[0]))
 
 
-# What is the mean length of the reference summaries?
+with open('result_test_mix_references.txt', 'w', encoding='utf8') as convert_file:
+    for line in output[1]:
+        convert_file.write(line)
+        convert_file.write('\n')
+
+with open('result_test_mix_summaries.txt', 'w', encoding='utf8') as convert_file:
+    for line in output[2]:
+        convert_file.write(line)
+        convert_file.write('\n')
+
+# mixed
+test = pd.read_csv(r'abs_test.csv')
+dd = pd.DataFrame.reset_index(test)
+# Run on the altogether test samples
+output = summarise_danewsroom(dd, 3)
+
+with open('result_test_abs_rouge.txt', 'w') as convert_file:
+     convert_file.write(json.dumps(output[0]))
+
+with open('result_test_abs_references.txt', 'w', encoding='utf8') as convert_file:
+    for line in output[1]:
+        convert_file.write(line)
+        convert_file.write('\n')
+
+with open('result_test_abs_summaries.txt', 'w', encoding='utf8') as convert_file:
+    for line in output[2]:
+        convert_file.write(line)
+        convert_file.write('\n')
+'''
+
+# What is the mean length of the reference summaries compared to the generated summaries?
+with open('result_test_ex_references.txt',  encoding='utf8') as f:
+    refs = f.readlines()
+with open('result_test_ex_summaries.txt',  encoding='utf8') as f:
+    summaries = f.readlines()
+
 length = []
-text_length = []
-for summary, text in zip(df["summary"], df["text"]):
+refs_length = []
+for summary, ref in zip(summaries, refs):
     words = word_tokenize(summary)
     length.append(len(words))
-    text_tokens = word_tokenize(text)
-    text_length.append(len(text_tokens))
+    refs_tokens = word_tokenize(ref)
+    refs_length.append(len(refs_tokens))
 
 np.mean(length)
-np.mean(text_length)
+np.mean(refs_length)
+'''
 
-np.mean(length)/np.mean(text_length)
+''' Length for generated summary vs. reference summary
+>>> np.mean(length)
+41.612738680991285
+>>> np.mean(refs_length)
+25.4009840653636
+'''
+'''
+with open('result_test_mix_references.txt',  encoding='utf8') as f:
+    refs = f.readlines()
+with open('result_test_mix_summaries.txt',  encoding='utf8') as f:
+    summaries = f.readlines()
+
+length = []
+refs_length = []
+for summary, ref in zip(summaries, refs):
+    words = word_tokenize(summary)
+    length.append(len(words))
+    refs_tokens = word_tokenize(ref)
+    refs_length.append(len(refs_tokens))
+
+np.mean(length)
+np.mean(refs_length)
+'''
+#np.mean(length)/np.mean(text_length)
 
 # From the 500 samples the summaries are only ~6% of the text
 
+
+# Read in stuff
+#with open('result_test_ex_references.txt',  encoding='utf8') as f:
+    #lines = f.readlines()
 

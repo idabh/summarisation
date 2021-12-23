@@ -19,7 +19,12 @@ import pandas as pd
 from nltk.tokenize.treebank import TreebankWordDetokenizer
 from nltk.stem.snowball import SnowballStemmer
 stemmer = SnowballStemmer("danish")
+import sys
 
+# Making print function for printing the iterations
+def my_print(text):
+    sys.stdout.write(str(text))
+    sys.stdout.flush()
 
 def stem_words(words):
     '''
@@ -237,7 +242,7 @@ def rouge_output(pred, ref, rouge_type, stemmer):
             h = stem_words(h)
             r = stem_words(r)
         # computing the ROUGE
-        score = scorer.score(h, r)
+        score = scorer.score(r, h)
         # separating the measurements
         precision, recall, fmeasure = score[rouge_type]
         # add them to the proper list in the dictionary
@@ -266,7 +271,8 @@ def summarise_danewsroom(df, len_summary):
     summaries = []
     filesummaries = []
     for iter_num in range(len(df)):
-
+        my_print(iter_num)
+        my_print("\n")
         # do things with chunk
         filedata = df['text'][iter_num]
         filesummary = df['summary'][iter_num]
@@ -285,8 +291,4 @@ def summarise_danewsroom(df, len_summary):
     results = {'rouge1': mean_scores_r1, 'rouge2': mean_scores_r2, 'rougeL': mean_scores_rL}
 
     return [results, filesummaries, summaries]
-
-
-
-
 
