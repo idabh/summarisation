@@ -86,7 +86,7 @@ bert2bert.config.pad_token_id = tokenizer.pad_token_id
 
 # sensible parameters for beam search
 bert2bert.config.vocab_size = bert2bert.config.decoder.vocab_size
-bert2bert.config.max_length = 142
+bert2bert.config.max_length = 128 #was 142?
 bert2bert.config.min_length = 56
 bert2bert.config.no_repeat_ngram_size = 3
 bert2bert.config.early_stopping = True
