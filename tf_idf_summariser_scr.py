@@ -20,6 +20,8 @@ from nltk.tokenize.treebank import TreebankWordDetokenizer
 from nltk.stem.snowball import SnowballStemmer
 stemmer = SnowballStemmer("danish")
 import sys
+import pandas as pd
+from rouge_score import rouge_scorer
 
 # Making print function for printing the iterations
 def my_print(text):
@@ -39,18 +41,6 @@ def stem_words(words):
     stemmed_words = TreebankWordDetokenizer().detokenize(stemmed_words)
     return stemmed_words
 
-def lemmatize_words(words):
-    '''
-    Lemmatises words using the danish version of "lemmy" 
-    Maybe problem with lemmatizer given two options at places. Index the first element to only get one. 
-    Args: words as a tokenized list only lower case
-    Return: Lemmatized words
-    '''
-    lemmatized_words = []
-    for word in words:
-       lemmatized_words.append(lemmatizer.lemmatize("", word)[0])
-    return lemmatized_words
-
 def remove_special_characters(text):
     '''
     Removes special characters but not æ, ø and å 
@@ -61,21 +51,6 @@ def remove_special_characters(text):
     text = re.sub(r'_', '', text) # remove underscore from places
     return text
 
-def freq(words):
-    '''
-    Calculates the frequency that each words is used in a list of words
-    Args: Words as a tokenized list only lower case
-    Return: a dictionary with each word as key and the frequency as the value
-    '''
-    words = [word.lower() for word in words]
-    dict_freq = {}
-    words_unique = []
-    for word in words:
-       if word not in words_unique:
-           words_unique.append(word)
-    for word in words_unique:
-       dict_freq[word] = words.count(word)
-    return dict_freq
 
 def pos_tagging(text):
     '''
@@ -97,7 +72,6 @@ def tf_score(word,sentence):
     Args: The word and the sentence where it is used.
     Return: The term frequency for that word in the sentence
     '''
-    freq_sum = 0
     word_frequency_in_sentence = 0
     len_sentence = len(sentence)
     for word_in_sentence in sentence.split():
@@ -108,7 +82,7 @@ def tf_score(word,sentence):
 
 def idf_score(no_of_sentences,word,sentences):
     '''
-    Calculates inverse document frequency scores a word in a text
+    Calculates inverse document frequency scores a word in a text meaning how many sentences use a specific word in a list of sentences. 
     Args: Number of sentences in the text, the word to get the score for and the text as tokenized sentences
     Return: The inverse document frequency score
     '''
@@ -144,7 +118,7 @@ def word_tfidf(word,sentences,sentence):
     tf_idf = tf_idf_score(tf,idf)
     return tf_idf
 
-def sentence_importance(sentence,dict_freq,sentences):
+def sentence_importance(sentence,sentences):
     '''
     Calculates the sentence importance score using the tf-idf score function on the lemmatized nouns and verbs. 
     Args: The sentence to calculate score, all tokenized sentences from the text and the dictionary of frequencies. 
@@ -154,7 +128,6 @@ def sentence_importance(sentence,dict_freq,sentences):
     sentence = remove_special_characters(str(sentence)) 
     sentence = re.sub(r'\d+', '', sentence)
     pos_tagged_sentence = [] 
-    no_of_sentences = len(sentences)
     pos_tagged_sentence = pos_tagging(sentence) 
 
     sentence_score = 0
@@ -169,34 +142,27 @@ def sentence_importance(sentence,dict_freq,sentences):
 def summarise(text, summary_length):
     '''
     Summarises a text by extracting the most important sentences using tf-idf scores
-    Args: The text as a string to be sumarised and the number of sentences to keep for the summary. 
+    Args: The text as a string to be summarised and the number of sentences to keep for the summary. 
     Return: A summary as a string
     '''
     # Tokenize sentences meaning seperating each sentence in a text 
     tokenized_sentence = tokenizer.tokenize(text) # also removes the \n\n
     
-    # Preprocesses the text to retrieve the word_freq
-    text = remove_special_characters(str(text)) # also removes the \n\n
-    text = re.sub(r'\d+', '', text) # removes numbers
-    tokenized_words_with_stopwords = word_tokenize(text, language = 'danish')
-    tokenized_words = [word for word in tokenized_words_with_stopwords if word not in Stopwords] # should take out "i" and so on
-    tokenized_words = [word for word in tokenized_words if len(word) > 1]
-    tokenized_words = [word.lower() for word in tokenized_words]
-    tokenized_words = lemmatize_words(tokenized_words) 
-    word_freq = freq(tokenized_words) # Get frequencies of the lemmatized words
-    
     # Calculate sentence importance from tokenized sentences
     c = 1
     sentence_with_importance = {}
     for sent in tokenized_sentence:
-        sentenceimp = sentence_importance(sent,word_freq,tokenized_sentence)
+        sentenceimp = sentence_importance(sent,tokenized_sentence)
         sentence_with_importance[c] = sentenceimp
         c = c+1
+
+    # sort the sentences according to performance
     sentence_with_importance = sorted(sentence_with_importance.items(), key=operator.itemgetter(1),reverse=True)
     cnt = 0
     summary = []
     sentence_no = []
     max_length = summary_length
+
     # take out the most important sentences indexes
     for word_prob in sentence_with_importance:
         if cnt < max_length:
@@ -218,11 +184,6 @@ def summarise(text, summary_length):
 
     return summary
 
-# Making it for the danewsroom dataset - problem with the iterate
-import pandas as pd
-
-# Rouge scores
-from rouge_score import rouge_scorer
 
 def rouge_output(pred, ref, rouge_type, stemmer):
     '''
@@ -230,13 +191,13 @@ def rouge_output(pred, ref, rouge_type, stemmer):
     Args: The predicted summary, the reference summary and the rouge_type e.g. 'rouge1'. and stemmer = True/False if stemming should be used. 
     Return: A dictionary containing the mean value for precision, recall and fmeasure
     '''
-
     scorer = rouge_scorer.RougeScorer([rouge_type]) # Rouge uses porter stemmer which is not for Danish - try snowball
-
     # a dictionary that will contain the results
     results = {'precision': [], 'recall': [], 'fmeasure': []}
 
     # for each of the hypothesis and reference documents pair
+    my_print("before stemmer")
+    my_print("\n")
     for (h, r) in zip(pred, ref):
         if stemmer == True:
             h = stem_words(h)
@@ -260,7 +221,7 @@ def rouge_output(pred, ref, rouge_type, stemmer):
     return result
 
 
-def summarise_danewsroom(df, len_summary):
+def summarise_danewsroom(df, len_summary, stemmer):
     '''
     Loops over texts in the danewsroom dataset and summarises using the summarise function
     Args: The pandas df containing the danewsroom data and the length of the summary as percentage e.g. 20
@@ -284,9 +245,9 @@ def summarise_danewsroom(df, len_summary):
         summaries.append(summary)
 
         # Output a mean rouge score
-    mean_scores_r1 = rouge_output(summaries, filesummaries, 'rouge1', stemmer = True)  
-    mean_scores_r2 = rouge_output(summaries, filesummaries, 'rouge2',  stemmer = True) 
-    mean_scores_rL = rouge_output(summaries, filesummaries, 'rougeL',  stemmer = True)   
+    mean_scores_r1 = rouge_output(summaries, filesummaries, 'rouge1', stemmer = stemmer)  
+    mean_scores_r2 = rouge_output(summaries, filesummaries, 'rouge2',  stemmer = stemmer) 
+    mean_scores_rL = rouge_output(summaries, filesummaries, 'rougeL',  stemmer = stemmer)   
 
     results = {'rouge1': mean_scores_r1, 'rouge2': mean_scores_r2, 'rougeL': mean_scores_rL}
 
