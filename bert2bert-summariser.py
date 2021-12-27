@@ -15,9 +15,9 @@ metric = datasets.load_metric("rouge")
 
 ############################## Data ################################
 #load through pandas
-train = Dataset.from_pandas(pd.read_csv("train_d.csv", usecols=['text','summary','idx']))
-test = Dataset.from_pandas(pd.read_csv("test_d.csv", usecols=['text','summary','idx']))
-val = Dataset.from_pandas(pd.read_csv("val_d.csv", usecols=['text','summary','idx']))
+train = Dataset.from_pandas(pd.read_csv("./danewsroom/train_d.csv", usecols=['text','summary','idx']))
+test = Dataset.from_pandas(pd.read_csv("./danewsroom/test_d.csv", usecols=['text','summary','idx']))
+val = Dataset.from_pandas(pd.read_csv("./danewsroom/val_d.csv", usecols=['text','summary','idx']))
 
 #make the datasetdict
 dd = datasets.DatasetDict({"train":train,"validation":val,"test":test})
@@ -50,7 +50,7 @@ def process_data_to_model_inputs(batch):
   return batch
 
 # only use 32 training examples for notebook - DELETE LINE FOR FULL TRAINING
-train_data = dd['train']#.select(range(1000))
+train_data = dd['train'].select(range(1500))
 
 train_data = train_data.map(
     process_data_to_model_inputs, 
@@ -64,7 +64,7 @@ train_data.set_format(
 
 
 # only use 16 training examples for notebook - DELETE LINE FOR FULL TRAINING
-val_data = dd['validation']#.select(range(100))
+val_data = dd['validation'].select(range(200))
 
 val_data = val_data.map(
     process_data_to_model_inputs, 
@@ -85,13 +85,13 @@ bert2bert.config.eos_token_id = tokenizer.eos_token_id
 bert2bert.config.pad_token_id = tokenizer.pad_token_id
 
 # sensible parameters for beam search
-bert2bert.config.vocab_size = bert2bert.config.decoder.vocab_size
+bert2bert.config.vocab_size = bert2bert.config.decoder.vocab_size #encoder
 bert2bert.config.max_length = 128 #was 142?
 bert2bert.config.min_length = 56
-bert2bert.config.no_repeat_ngram_size = 3
+bert2bert.config.no_repeat_ngram_size = 2
 bert2bert.config.early_stopping = True
 bert2bert.config.length_penalty = 2.0
-bert2bert.config.num_beams = 4
+bert2bert.config.num_beams = 2
 
 @dataclass
 class Seq2SeqTrainingArguments(TrainingArguments):
@@ -122,15 +122,16 @@ training_args = Seq2SeqTrainingArguments(
     f"bert" + timestr,
     per_device_train_batch_size=batch_size,
     per_device_eval_batch_size=batch_size,
+    #gradient_accumulation_steps=2,
     predict_with_generate=True,
     #evaluation_strategy = "steps",
     #save_strategy = "steps",
     do_train=True,
     do_eval=True,
-    logging_steps=1000,  # set to 1000 for full training
-    save_steps=500,  # set to 500 for full training
-    eval_steps=500,  # set to 8000 for full training
-    warmup_steps=2000,  # set to 2000 for full training
+    logging_steps=10,  # set to 1000 for full training
+    save_steps=5,  # set to 500 for full training
+    eval_steps=5,  # set to 8000 for full training
+    warmup_steps=20,  # set to 2000 for full training
     #max_steps=16, # delete for full training
     num_train_epochs=1,
     overwrite_output_dir=True,
@@ -173,14 +174,14 @@ trainer = Seq2SeqTrainer(
 
 trainer.train()
 
-result=trainer.evaluate(max_length=128, num_beams=4)
+result=trainer.evaluate(max_length=128, num_beams=2)
 from numpy import save
 save('./bert' + timestr + '_train', result)  
 
 ######################## Evaluation ##################################
-bert2bert.to("cuda")
+bert2bert.to("cpu")
 
-test_data = dd['test']#.select(range(10))
+test_data = dd['test'].select(range(10))
 
 #batch_size = 64  # change to 64 for full evaluation
 
@@ -189,8 +190,8 @@ def generate_summary(batch):
     # Tokenizer will automatically set [BOS] <text> [EOS]
     # cut off at BERT max length 512
     inputs = tokenizer(batch["text"], padding="max_length", truncation=True, max_length=512, return_tensors="pt")
-    input_ids = inputs.input_ids.to("cuda")
-    attention_mask = inputs.attention_mask.to("cuda")
+    input_ids = inputs.input_ids.to("cpu")
+    attention_mask = inputs.attention_mask.to("cpu")
 
     outputs = bert2bert.generate(input_ids, attention_mask=attention_mask)
 
