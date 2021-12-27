@@ -1,28 +1,24 @@
-from tf_idf_summariser_scr import summarise_danewsroom, word_tokenize, summarise_danewsroom
+from tf_idf_summariser_scr import summarise_danewsroom, summarise_danewsroom
 import pandas as pd
-import numpy as np
 import nltk
-from nltk.tokenize import word_tokenize
 tokenizer = nltk.data.load('tokenizers/punkt/danish.pickle')
 import json
-import codecs
-import csv
 
 test = pd.read_csv(r'test_d.csv')
 dd = pd.DataFrame.reset_index(test)
 # Run on the altogether test samples
-output = summarise_danewsroom(dd, 3)
+output = summarise_danewsroom(dd, 3, stemmer = False)
 
-with open('result_test_d_rouge.txt', 'w') as convert_file:
+with open('nonstemmed_result_test_d_rouge.txt', 'w') as convert_file:
      convert_file.write(json.dumps(output[0]))
 
 
-with open('result_test_d_references.txt', 'w', encoding='utf8') as convert_file:
+with open('nonstemmed_result_test_d_references.txt', 'w', encoding='utf8') as convert_file:
     for line in output[1]:
         convert_file.write(line)
         convert_file.write('\n')
 
-with open('result_test_d_summaries.txt', 'w', encoding='utf8') as convert_file:
+with open('nonstemmed_result_test_d_summaries.txt', 'w', encoding='utf8') as convert_file:
     for line in output[2]:
         convert_file.write(line)
         convert_file.write('\n')
@@ -32,17 +28,17 @@ with open('result_test_d_summaries.txt', 'w', encoding='utf8') as convert_file:
 test = pd.read_csv(r'ex_test.csv')
 dd = pd.DataFrame.reset_index(test)
 # Run on the altogether test samples
-output = summarise_danewsroom(dd, 3)
+output = summarise_danewsroom(dd, 3, stemmer = False)
 
-with open('result_test_ex_rouge.txt', 'w') as convert_file:
+with open('nonstemmed_result_test_ex_rouge.txt', 'w') as convert_file:
      convert_file.write(json.dumps(output[0]))
 
-with open('result_test_ex_references.txt', 'w', encoding='utf8') as convert_file:
+with open('nonstemmed_result_test_ex_references.txt', 'w', encoding='utf8') as convert_file:
     for line in output[1]:
         convert_file.write(line)
         convert_file.write('\n')
 
-with open('result_test_ex_summaries.txt', 'w', encoding='utf8') as convert_file:
+with open('nonstemmed_result_test_ex_summaries.txt', 'w', encoding='utf8') as convert_file:
     for line in output[2]:
         convert_file.write(line)
         convert_file.write('\n')
@@ -51,37 +47,37 @@ with open('result_test_ex_summaries.txt', 'w', encoding='utf8') as convert_file:
 test = pd.read_csv(r'mix_test.csv')
 dd = pd.DataFrame.reset_index(test)
 # Run on the altogether test samples
-output = summarise_danewsroom(dd, 3)
+output = summarise_danewsroom(dd, 3, stemmer = False)
 
-with open('result_test_mix_rouge.txt', 'w') as convert_file:
+with open('nonstemmed_result_test_mix_rouge.txt', 'w') as convert_file:
      convert_file.write(json.dumps(output[0]))
 
 
-with open('result_test_mix_references.txt', 'w', encoding='utf8') as convert_file:
+with open('nonstemmed_result_test_mix_references.txt', 'w', encoding='utf8') as convert_file:
     for line in output[1]:
         convert_file.write(line)
         convert_file.write('\n')
 
-with open('result_test_mix_summaries.txt', 'w', encoding='utf8') as convert_file:
+with open('nonstemmed_result_test_mix_summaries.txt', 'w', encoding='utf8') as convert_file:
     for line in output[2]:
         convert_file.write(line)
         convert_file.write('\n')
 
-# mixed
+# abstra
 test = pd.read_csv(r'abs_test.csv')
 dd = pd.DataFrame.reset_index(test)
 # Run on the altogether test samples
-output = summarise_danewsroom(dd, 3)
+output = summarise_danewsroom(dd, 3, stemmer = False)
 
-with open('result_test_abs_rouge.txt', 'w') as convert_file:
+with open('nonstemmed_result_test_abs_rouge.txt', 'w') as convert_file:
      convert_file.write(json.dumps(output[0]))
 
-with open('result_test_abs_references.txt', 'w', encoding='utf8') as convert_file:
+with open('nonstemmed_result_test_abs_references.txt', 'w', encoding='utf8') as convert_file:
     for line in output[1]:
         convert_file.write(line)
         convert_file.write('\n')
 
-with open('result_test_abs_summaries.txt', 'w', encoding='utf8') as convert_file:
+with open('nonstemmed_result_test_abs_summaries.txt', 'w', encoding='utf8') as convert_file:
     for line in output[2]:
         convert_file.write(line)
         convert_file.write('\n')
