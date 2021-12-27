@@ -1,6 +1,8 @@
 # Danish summarisation
 NLP exam autumn 2021.
 
+This repository includes all the code and ROUGE results obtained for the project of creating an automatic Danish summariser. 
+
 To run this script, first install the packages by running:
 pip install -r /path/to/requirements.txt
 
