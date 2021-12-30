@@ -7,7 +7,7 @@ import pandas as pd
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import time
-#from tf_idf_summariser_scr import summarise as summarise_ex
+from tf_idf_summariser_scr import summarise as summarise_ex
 
 #---FUNCTION
 batch_size = 4 
@@ -98,5 +98,6 @@ for article in articles['text']:
         #np.save('./mt5' + timestr + '_preds.npy', pred_str)
     
     #MAKE EXTRACTIVE WORK HERE
+    summarise_ex(text, 3) # here for the text given as an example earlier in the script. If just substituted with the correct text for article it should work
     #print(summarise_ex(article))
     print("---NEXT ARTICLE---")
