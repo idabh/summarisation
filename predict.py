@@ -1,10 +1,13 @@
 import nltk
+nltk.download('punkt')
+nltk.download('stopwords')
 import datasets
 from datasets import Dataset
 import pandas as pd
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import time
+#from tf_idf_summariser_scr import summarise as summarise_ex
 
 #---FUNCTION
 batch_size = 4 
@@ -28,7 +31,6 @@ def generate_summary(batch):
 #---
 
 #timestr = time.strftime("%d-%H%M%S")
-nltk.download('punkt')
 model_checkpoint = "google/mt5-small"
 metric = datasets.load_metric("rouge")
 
@@ -69,12 +71,18 @@ model_ex = AutoModelForSeq2SeqLM.from_pretrained('/work/Summarization/mt526-1426
 models = [model_ran, model_abs, model_mix, model_ex]
 
 
-#make them make summaries for articles from the test sets:
+#articles from the test sets:
 abs_test = Dataset.from_pandas(pd.read_csv("/work/Summarization/abs_test.csv"))
 mix_test = Dataset.from_pandas(pd.read_csv("/work/Summarization/mix_test.csv"))
 ex_test = Dataset.from_pandas(pd.read_csv("/work/Summarization/ex_test.csv"))
-#change articles here
-articles = abs_test[23:33]
+#add 'summarize: ' PREFIX since the models were trained on that!:
+abs_test = abs_test.map(lambda example: {'text': 'summarize: ' + example['text']})
+mix_test = mix_test.map(lambda example: {'text': 'summarize: ' + example['text']})
+ex_test = ex_test.map(lambda example: {'text': 'summarize: ' + example['text']})
+
+
+#CHANGE ARTICLES HERE
+articles = abs_test[4003:40030]
 
 #####GENERATE SUMMARIES#####
 for article in articles['text']:
@@ -88,4 +96,7 @@ for article in articles['text']:
 
         #from numpy import save
         #np.save('./mt5' + timestr + '_preds.npy', pred_str)
+    
+    #MAKE EXTRACTIVE WORK HERE
+    #print(summarise_ex(article))
     print("---NEXT ARTICLE---")
