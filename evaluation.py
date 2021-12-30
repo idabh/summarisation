@@ -9,14 +9,14 @@ from transformers import EarlyStoppingCallback
 import time
 
 timestr = time.strftime("%d-%H%M%S")
-timestr = timestr + '_mix_prompt'
+timestr = timestr + '_prefix'
 nltk.download('punkt')
 model_checkpoint = "google/mt5-small"
 metric = datasets.load_metric("rouge")
 
-train = Dataset.from_pandas(pd.read_csv("./danewsroom/mix_train.csv", usecols=['text','summary','idx']))
-test = Dataset.from_pandas(pd.read_csv("./danewsroom/mix_test.csv", usecols=['text','summary','idx']))
-val = Dataset.from_pandas(pd.read_csv("./danewsroom/mix_val.csv", usecols=['text','summary','idx']))
+train = Dataset.from_pandas(pd.read_csv("./danewsroom/train_d.csv", usecols=['text','summary','idx']))
+test = Dataset.from_pandas(pd.read_csv("./danewsroom/test_d.csv", usecols=['text','summary','idx']))
+val = Dataset.from_pandas(pd.read_csv("./danewsroom/val_d.csv", usecols=['text','summary','idx']))
 
 dd = datasets.DatasetDict({"train":train,"validation":val,"test":test})
 dd
@@ -24,7 +24,7 @@ dd
 tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
 
 ######################## Evaluation ##################################
-model = AutoModelForSeq2SeqLM.from_pretrained('./danewsroom/mt528-132950_mix/checkpoint-14500')
+model = AutoModelForSeq2SeqLM.from_pretrained('./danewsroom/mt522-090648/checkpoint-7500')
 model.to('cpu')
 test_data = dd['test']
 
@@ -35,7 +35,7 @@ prefix = "summarize: "
 def generate_summary(batch):
     # Tokenizer will automatically set [BOS] <text> [EOS]
     # cut off at BERT max length 512 
-    inputs = [prefix + doc for doc in batch["text"]]
+    batch['text'] = [prefix + doc for doc in batch["text"]]
     inputs = tokenizer(batch["text"], padding="max_length", truncation=True, max_length=1024, return_tensors="pt")
     input_ids = inputs.input_ids.to("cpu")
     attention_mask = inputs.attention_mask.to("cpu")
