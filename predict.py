@@ -1,24 +1,15 @@
 import nltk
+nltk.download('punkt')
+nltk.download('stopwords')
 import datasets
 from datasets import Dataset
 import pandas as pd
 import numpy as np
 from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import time
+#from tf_idf_summariser_scr import summarise as summarise_ex
 
-timestr = time.strftime("%d-%H%M%S")
-nltk.download('punkt')
-model_checkpoint = "google/mt5-small"
-metric = datasets.load_metric("rouge")
-
-df = Dataset.from_pandas(pd.DataFrame({'text': ['Der er onsdag klokken 15 pressemøde om den aktuelle status for covid-19 i Danmark. Det oplyser Sundhedsstyrelsen i en pressemeddelelse. Ingen ministre er med til pressemødet, men blandt andre styrelsens direktør, Søren Brostrøm, deltager til det, der kaldes en pressebriefing. Det gør også faglig direktør i Statens Serum Institut Tyra Grove Krause og Lisbet Zilmer-Johns. Hun er direktør for Styrelsen for Forsyningssikkerhed. Det er den myndighed, der blandt andet har ansvar for testsystemet.']}))
-
-tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
-
-######################## Evaluation ##################################
-model = AutoModelForSeq2SeqLM.from_pretrained('./work/checkpoint-7500')
-model.to('cpu')
-
+#---FUNCTION
 batch_size = 4 
 
 # map data correctly
@@ -37,11 +28,75 @@ def generate_summary(batch):
     batch["pred"] = output_str
 
     return batch
+#---
 
-results = df.map(generate_summary, batched=True, batch_size=batch_size)
-pred_str = results["pred"]
+#timestr = time.strftime("%d-%H%M%S")
+model_checkpoint = "google/mt5-small"
+metric = datasets.load_metric("rouge")
 
-print(pred_str)
+#df = Dataset.from_pandas(pd.DataFrame({'text': ['Der er onsdag klokken 15 pressemøde om den aktuelle status for covid-19 i Danmark. Det oplyser Sundhedsstyrelsen i en pressemeddelelse. Ingen ministre er med til pressemødet, men blandt andre styrelsens direktør, Søren Brostrøm, deltager til det, der kaldes en pressebriefing. Det gør også faglig direktør i Statens Serum Institut Tyra Grove Krause og Lisbet Zilmer-Johns. Hun er direktør for Styrelsen for Forsyningssikkerhed. Det er den myndighed, der blandt andet har ansvar for testsystemet.']}))
 
-#from numpy import save
-#np.save('./mt5' + timestr + '_preds.npy', pred_str)
+text = """
+summarize: Årets næstsidste dag er startet med endnu en diset morgen mange steder.
+Dog er sigtbarheden markant bedre end onsdag morgen. Kun enkelte steder i den sydlige del af landet kan der ligge nogle tætte tågebanker.
+I løbet af dagen vil det fortsætte overskyet i en stor del af landet. Men særligt i Jylland kan man være heldig, at der kan kommer lidt opbrud i skydækket.
+Derudover bliver det en meget mild dag. Allerede fra morgenstunden ligger temperaturen på mellem tre og syv graders varme. I dagens løb vil temperaturen stige op til ti graders varme.
+På trods af de mange skyer, begynder torsdagen uden nævneværdigt nedbør.
+Vi skal hen sidst på formiddagen, før der begynder at dukke spredte byger op i den sydvestlige del af landet.
+Det bliver med skyet vejr i hele landet, men i den nordlige del af Jylland kan solen omkring middagstid titte lidt frem.
+Spredte byger på en mild eftermiddag
+Mens solen måske skinner lidt i det nordlige Jylland, vil bygerne, der gik i land i Sydvestjylland, efterhånden brede sig til resten af landet.
+Først er det de vestlige og sydlige egne, der får spredte byger. Sidenhen er det også de østlige landsdele.
+I løbet af eftermiddagen når temperaturen op mellem seks og ni graders varme. Køligst bliver det på Bornholm, mens det lokalt andre steder kan blive op til ti grader.
+Vinden er dagen igennem let til jævn fra sydvest.
+I aften vil det fortsat være overvejende skyet vejr.
+I de østlige egne vil der stadig være spredte byger, der forventes at klinge af i aftenens løb. Det er fortsat mildt med syv til ni grader på termometret.
+"""
+
+#the manually pasted text from above:
+#df = Dataset.from_pandas(pd.DataFrame({'text': [str(text)]}))
+
+tokenizer = AutoTokenizer.from_pretrained(model_checkpoint)
+
+######################## Evaluation ##################################
+#-RANDOM MT5 (7500 is best???):
+model_ran = AutoModelForSeq2SeqLM.from_pretrained('/work/Summarization/mt522-090648/checkpoint-7500')
+#-ABSTRACTIVE MT5(15000 is best?):
+model_abs = AutoModelForSeq2SeqLM.from_pretrained('/work/Summarization/mt527-140701_abs/checkpoint-15000')
+#-MIXED MT5:
+model_mix = AutoModelForSeq2SeqLM.from_pretrained('/work/Summarization/mt528-132950_mix/checkpoint-15000')
+#-EXTRACTIVE MT5 (15000 is best?):
+model_ex = AutoModelForSeq2SeqLM.from_pretrained('/work/Summarization/mt526-142648_ex/checkpoint-15000')
+
+models = [model_ran, model_abs, model_mix, model_ex]
+
+
+#articles from the test sets:
+abs_test = Dataset.from_pandas(pd.read_csv("/work/Summarization/abs_test.csv"))
+mix_test = Dataset.from_pandas(pd.read_csv("/work/Summarization/mix_test.csv"))
+ex_test = Dataset.from_pandas(pd.read_csv("/work/Summarization/ex_test.csv"))
+#add 'summarize: ' PREFIX since the models were trained on that!:
+abs_test = abs_test.map(lambda example: {'text': 'summarize: ' + example['text']})
+mix_test = mix_test.map(lambda example: {'text': 'summarize: ' + example['text']})
+ex_test = ex_test.map(lambda example: {'text': 'summarize: ' + example['text']})
+
+
+#CHANGE ARTICLES HERE
+articles = abs_test[4003:40030]
+
+#####GENERATE SUMMARIES#####
+for article in articles['text']:
+    df = Dataset.from_pandas(pd.DataFrame({'text': [str(article)]}))
+    print(df['text']) #print the article
+    for model in models:
+        model.to('cpu')
+        results = df.map(generate_summary, batched=True, batch_size=batch_size)
+        pred_str = results["pred"]
+        print(pred_str)
+
+        #from numpy import save
+        #np.save('./mt5' + timestr + '_preds.npy', pred_str)
+    
+    #MAKE EXTRACTIVE WORK HERE
+    #print(summarise_ex(article))
+    print("---NEXT ARTICLE---")
