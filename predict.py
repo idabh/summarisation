@@ -82,7 +82,7 @@ ex_test = ex_test.map(lambda example: {'text': 'summarize: ' + example['text']})
 
 
 #CHANGE ARTICLES HERE
-articles = abs_test[4003:40030]
+articles = mix_test[7003:7023]
 
 #####GENERATE SUMMARIES#####
 for article in articles['text']:
@@ -97,7 +97,8 @@ for article in articles['text']:
         #from numpy import save
         #np.save('./mt5' + timestr + '_preds.npy', pred_str)
     
-    #MAKE EXTRACTIVE WORK HERE
-    summarise_ex(text, 3) # here for the text given as an example earlier in the script. If just substituted with the correct text for article it should work
-    #print(summarise_ex(article))
+    #Extractive TF-IDF summariser:
+    print(summarise_ex(df['text'][0], 3)) #if time: remove 'summarize: ' prefix from this version
     print("---NEXT ARTICLE---")
+
+#ORDER OF PRINTING: RANDOM, ABSTRACTIVE, MIXED, EXTRACTIVE, TF-IDF
