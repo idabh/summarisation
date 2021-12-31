@@ -9,15 +9,16 @@ from transformers import EarlyStoppingCallback
 import time
 
 timestr = time.strftime("%d-%H%M%S")
+timestr = timestr + "_abs_200k"
 nltk.download('punkt')
 model_checkpoint = "google/mt5-small"
 metric = datasets.load_metric("rouge")
 
 ############################## Data ################################
 #load through pandas
-train = Dataset.from_pandas(pd.read_csv("train_d.csv", usecols=['text','summary','idx']))
-test = Dataset.from_pandas(pd.read_csv("test_d.csv", usecols=['text','summary','idx']))
-val = Dataset.from_pandas(pd.read_csv("val_d.csv", usecols=['text','summary','idx']))
+train = Dataset.from_pandas(pd.read_csv("abs_train_200k.csv", usecols=['text','summary','idx']))
+test = Dataset.from_pandas(pd.read_csv("abs_test_200k.csv", usecols=['text','summary','idx']))
+val = Dataset.from_pandas(pd.read_csv("abs_val_200k.csv", usecols=['text','summary','idx']))
 
 # train = train.select(range(10000))
 # val = val.select(range(1000))
