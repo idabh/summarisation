@@ -9,6 +9,8 @@ from transformers import AutoTokenizer, AutoModelForSeq2SeqLM
 import time
 from tf_idf_summariser_scr import summarise as summarise_ex
 
+#python3 -m spacy download da_core_news_sm
+
 #---FUNCTION
 batch_size = 4 
 
@@ -80,9 +82,14 @@ abs_test = abs_test.map(lambda example: {'text': 'summarize: ' + example['text']
 mix_test = mix_test.map(lambda example: {'text': 'summarize: ' + example['text']})
 ex_test = ex_test.map(lambda example: {'text': 'summarize: ' + example['text']})
 
+#(inspect length of reference summaries)
+from statistics import mean
+mean([len(i) for i in (abs_test['summary'])]) #114.0164
+mean([len(i) for i in (mix_test['summary'])]) #118.868
+mean([len(i) for i in (ex_test['summary'])]) #155.40535
 
 #CHANGE ARTICLES HERE
-articles = mix_test[7003:7023]
+articles = ex_test[3403:3523]
 
 #####GENERATE SUMMARIES#####
 for article in articles['text']:
