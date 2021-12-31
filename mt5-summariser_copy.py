@@ -121,13 +121,14 @@ save('./mt5' + timestr + '_train', result)
 model.to('cuda')
 test_data = dd['test']
 
-#batch_size = 16  # change to 64 for full evaluation
+prefix = "summarize: "
 
 # map data correctly
 def generate_summary(batch):
     # Tokenizer will automatically set [BOS] <text> [EOS]
     # cut off at BERT max length 512
-    inputs = tokenizer(batch["text"], padding="max_length", truncation=True, max_length=512, return_tensors="pt")
+    batch['text'] = [prefix + doc for doc in batch["text"]]
+    inputs = tokenizer(batch["text"], padding="max_length", truncation=True, max_length=1024, return_tensors="pt")
     input_ids = inputs.input_ids.to("cuda")
     attention_mask = inputs.attention_mask.to("cuda")
 
